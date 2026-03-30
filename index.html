@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BAM-boozled: SAM Flag Explainer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;padding:1rem;font-family:system-ui,sans-serif;background:#f0f2f5;color:#222;min-height:100vh}
+header{max-width:1100px;margin:0 auto 1.5rem;padding:1.2rem 1.5rem;background:linear-gradient(135deg,#1a3a5c,#0d6e6e);color:#fff;border-radius:10px}
+header h1{margin:0 0 0.2rem;font-size:1.6rem;letter-spacing:0.02em}
+header p{margin:0;opacity:0.8;font-size:0.9rem}
+main{max-width:1100px;margin:0 auto}
+
+#input-section{background:#fff;border-radius:8px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+#input-section label{font-weight:600;font-size:0.95rem}
+#flag-input{font-family:'Cascadia Code','Fira Code',Consolas,Menlo,monospace;font-size:1.2rem;width:10ch;padding:0.3rem 0.5rem;border:2px solid #dee2e6;border-radius:6px;outline:none;transition:border-color .15s}
+#flag-input:focus{border-color:#0d6e6e}
+#flag-input.invalid{border-color:#dc3545}
+.btn{padding:0.35rem 0.9rem;border:none;border-radius:20px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:background .15s,transform .1s}
+.btn:active{transform:scale(0.97)}
+#btn-switch{background:#0d6e6e;color:#fff}
+#btn-switch:hover{background:#0a5858}
+#btn-clear{background:#e9ecef;color:#555}
+#btn-clear:hover{background:#dee2e6}
+.flag-val-display{font-family:monospace;font-size:0.85rem;color:#666;margin-left:auto}
+
+#main-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:1rem;align-items:start}
+@media(max-width:800px){#main-grid{grid-template-columns:1fr}}
+
+#flags-section,#diagram-section{background:#fff;border-radius:8px;padding:1rem 1.2rem;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+#flags-section h2,#diagram-section h2{margin:0 0 0.8rem;font-size:1rem;color:#1a3a5c;border-bottom:2px solid #e9ecef;padding-bottom:0.4rem}
+
+.flag-row{display:flex;flex-direction:column;padding:0.35rem 0.5rem;border-radius:5px;margin-bottom:2px;transition:background .1s}
+.flag-row:hover{background:#f8f9fa}
+.flag-row.is-active{background:#e3f4f4}
+.flag-row.has-warning{background:#fff3cd}
+.flag-top{display:flex;align-items:center;gap:0.5rem}
+.flag-cb{width:15px;height:15px;cursor:pointer;accent-color:#0d6e6e;flex-shrink:0}
+.flag-name{font-weight:600;font-size:0.88rem;flex:1}
+.flag-bits{font-family:monospace;font-size:0.78rem;color:#888}
+.flag-desc{font-size:0.78rem;color:#666;margin:0.1rem 0 0.2rem 1.5rem;line-height:1.3}
+.flag-mini{font-family:'Cascadia Code','Fira Code',Consolas,Menlo,monospace;font-size:0.62rem;line-height:1.35;color:#888;margin:0.15rem 0 0 1.5rem;white-space:pre;background:#f8f9fa;padding:0.2rem 0.4rem;border-radius:3px;display:inline-block}
+.flag-row.is-active .flag-mini{color:#0d6e6e;background:#e3f4f4}
+.warn-tag{font-size:0.7rem;color:#856404;margin-left:0.3rem}
+
+#main-art{font-family:'Cascadia Code','Fira Code',Consolas,Menlo,monospace;font-size:0.8rem;line-height:1.4;white-space:pre;background:#1e1e2e;color:#cdd6f4;padding:1rem 1.2rem;border-radius:6px;overflow-x:auto;min-height:12rem;margin-bottom:0.8rem}
+
+#warnings-box{display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:5px;padding:0.5rem 0.8rem;margin-bottom:0.8rem;font-size:0.82rem;color:#664d03}
+#warnings-box ul{margin:0.2rem 0 0 1rem;padding:0}
+#warnings-box li{margin-bottom:0.2rem}
+
+#active-summary h3{margin:0 0 0.4rem;font-size:0.85rem;color:#1a3a5c}
+#active-list{margin:0;padding:0 0 0 1.2rem;font-size:0.82rem;color:#444;line-height:1.6}
+
+footer{max-width:1100px;margin:1rem auto 0;text-align:center;font-size:0.78rem;color:#888;padding:0.5rem}
+footer a{color:#0d6e6e}
+</style>
+</head>
+<body>
+<header>
+  <h1>BAM-boozled</h1>
+  <p>SAM flag explainer &mdash; in case the Broad's ever goes down</p>
+</header>
+<main>
+  <section id="input-section">
+    <label for="flag-input">Flag value:</label>
+    <input type="text" id="flag-input" placeholder="0" value="0" autocomplete="off" spellcheck="false">
+    <button class="btn" id="btn-switch">&#x21c4; Switch to Mate</button>
+    <button class="btn" id="btn-clear">Clear</button>
+    <span class="flag-val-display" id="hex-display"></span>
+  </section>
+
+  <div id="main-grid">
+    <section id="flags-section">
+      <h2>Flags</h2>
+      <div id="flag-list"></div>
+    </section>
+    <section id="diagram-section">
+      <h2>Alignment Diagram</h2>
+      <pre id="main-art" aria-label="ASCII alignment diagram"></pre>
+      <div id="warnings-box" role="alert" aria-live="polite"></div>
+      <div id="active-summary">
+        <h3>Active flags</h3>
+        <ul id="active-list"></ul>
+      </div>
+    </section>
+  </div>
+</main>
+<footer>
+  <a href="https://samtools.github.io/hts-specs/SAMv1.pdf" target="_blank" rel="noopener">SAM Format Specification</a>
+  &nbsp;&middot;&nbsp;
+  Original tool: <a href="https://broadinstitute.github.io/picard/explain-flags.html" target="_blank" rel="noopener">Picard Flag Explainer</a>
+</footer>
+<script>
+'use strict';
+
+const FLAGS = [
+  { bit:0x001, name:'Read paired',            desc:'Template has multiple segments in sequencing',
+    mini:['Ref ══════════════','    ┌──────┐        ','R1  └──────┘  R2┌───┘'] },
+  { bit:0x002, name:'Proper pair',            desc:'Each segment properly aligned per the aligner',
+    mini:['Ref ══════════════','    ┌─────→          ','          ←─────┐'] },
+  { bit:0x004, name:'Read unmapped',          desc:'Segment sequence does not map to the reference',
+    mini:['  ┌╌╌╌╌╌╌╌╌┐ ?   ','  └╌╌╌╌╌╌╌╌┘     ','Ref ══════════════'] },
+  { bit:0x008, name:'Mate unmapped',          desc:'Next segment (mate) is unmapped',
+    mini:['     ┌╌╌╌╌╌╌╌╌┐ ? ','Ref ══════════════','┌──────┘          '] },
+  { bit:0x010, name:'Read reverse strand',    desc:'Read is aligned to the reverse (minus) strand',
+    mini:['Ref ══════════════','    ←──────────┐   ','                  '] },
+  { bit:0x020, name:'Mate reverse strand',    desc:'Mate is aligned to the reverse (minus) strand',
+    mini:['Ref ══════════════','          ←────────┐','                  '] },
+  { bit:0x040, name:'First in pair',          desc:'This is the first segment (R1) in the template',
+    mini:['Ref ══════════════','R1┌─────────────→  ','                  '] },
+  { bit:0x080, name:'Second in pair',         desc:'This is the last segment (R2) in the template',
+    mini:['Ref ══════════════','  ←─────────────┐R2','                  '] },
+  { bit:0x100, name:'Not primary alignment',  desc:'Secondary alignment; read has multiple map locations',
+    mini:['Ref ══════════════','┌─────────────→    ','╌╌╌╌╌╌╌╌╌╌╌  (2°)'] },
+  { bit:0x200, name:'Read fails QC',          desc:'Not passing platform or vendor quality controls',
+    mini:['Ref ══════════════','┌─✗✗ FAIL ✗✗─┐   ','└─────────────┘   '] },
+  { bit:0x400, name:'PCR or optical duplicate',desc:'PCR or optical duplicate read',
+    mini:['░░░░░░░░░░░░  dup ','┌────────────┐     ','└────────────┘     '] },
+  { bit:0x800, name:'Supplementary alignment',desc:'Chimeric/split-read supplementary alignment',
+    mini:['┌─────┐   ┌──────┐','└──┬──┘   └──┬───┘','   └──╌╌╌╌╌╌┘      '] },
+];
+
+const VALIDATIONS = [
+  { check: v => !(v&1) && (v & 0x2),   msg: '"Proper pair" requires "Read paired" (0x1)',           bits:[0x2,0x1] },
+  { check: v => !(v&1) && (v & 0x8),   msg: '"Mate unmapped" requires "Read paired" (0x1)',         bits:[0x8,0x1] },
+  { check: v => !(v&1) && (v & 0x20),  msg: '"Mate reverse strand" requires "Read paired" (0x1)',   bits:[0x20,0x1] },
+  { check: v => !(v&1) && (v & 0x40),  msg: '"First in pair" requires "Read paired" (0x1)',         bits:[0x40,0x1] },
+  { check: v => !(v&1) && (v & 0x80),  msg: '"Second in pair" requires "Read paired" (0x1)',        bits:[0x80,0x1] },
+  { check: v => (v&4) && (v&2),        msg: 'Unmapped read cannot be in a proper pair',             bits:[0x4,0x2] },
+  { check: v => (v&4) && (v&16),       msg: 'Strand orientation is meaningless for unmapped reads', bits:[0x4,0x10] },
+  { check: v => (v&8) && (v&32),       msg: 'Mate strand is meaningless when mate is unmapped',     bits:[0x8,0x20] },
+  { check: v => (v&64) && (v&128),     msg: 'Read cannot be both first and second in pair',         bits:[0x40,0x80] },
+  { check: v => (v&256) && (v&2048),   msg: 'Alignment cannot be both secondary and supplementary', bits:[0x100,0x800] },
+];
+
+// ─── DOM ────────────────────────────────────────────────────────────────────
+const flagInput  = document.getElementById('flag-input');
+const hexDisplay = document.getElementById('hex-display');
+const switchBtn  = document.getElementById('btn-switch');
+const clearBtn   = document.getElementById('btn-clear');
+const flagList   = document.getElementById('flag-list');
+const mainArt    = document.getElementById('main-art');
+const warningsBox= document.getElementById('warnings-box');
+const activeList = document.getElementById('active-list');
+
+let currentValue = 0;
+
+// ─── Build flag rows ─────────────────────────────────────────────────────────
+FLAGS.forEach(f => {
+  const row = document.createElement('div');
+  row.className = 'flag-row';
+  row.dataset.bit = f.bit;
+
+  const top = document.createElement('div');
+  top.className = 'flag-top';
+
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'flag-cb';
+  cb.dataset.value = f.bit;
+  cb.id = 'cb_' + f.bit;
+
+  const lbl = document.createElement('label');
+  lbl.htmlFor = 'cb_' + f.bit;
+  lbl.className = 'flag-name';
+  lbl.textContent = f.name;
+
+  const bits = document.createElement('span');
+  bits.className = 'flag-bits';
+  bits.textContent = `${f.bit}  (0x${f.bit.toString(16).toUpperCase().padStart(3,'0')})`;
+
+  top.append(cb, lbl, bits);
+
+  const desc = document.createElement('div');
+  desc.className = 'flag-desc';
+  desc.textContent = f.desc;
+
+  const mini = document.createElement('pre');
+  mini.className = 'flag-mini';
+  mini.setAttribute('aria-hidden', 'true');
+  mini.textContent = f.mini.join('\n');
+
+  row.append(top, desc, mini);
+  flagList.appendChild(row);
+
+  cb.addEventListener('change', () => {
+    let v = 0;
+    document.querySelectorAll('.flag-cb').forEach(c => { if(c.checked) v |= +c.dataset.value; });
+    render(v, true);
+  });
+});
+
+// ─── Input parsing ────────────────────────────────────────────────────────────
+function parseInput(s) {
+  s = s.trim();
+  if (!s || s === '0') return 0;
+  if (/^0x/i.test(s)) return parseInt(s, 16);
+  if (/^[0-9]+$/.test(s)) return parseInt(s, 10);
+  return NaN;
+}
+
+flagInput.addEventListener('input', () => {
+  const v = parseInput(flagInput.value);
+  if (isNaN(v)) { flagInput.classList.add('invalid'); render(null); return; }
+  flagInput.classList.remove('invalid');
+  render(v, false, true);
+});
+
+switchBtn.addEventListener('click', () => {
+  const swaps = [[0x4,0x8],[0x10,0x20],[0x40,0x80]];
+  let v = currentValue;
+  for (const [a,b] of swaps) {
+    const ha = !!(v&a), hb = !!(v&b);
+    v = (v & ~a & ~b) | (ha?b:0) | (hb?a:0);
+  }
+  render(v);
+});
+
+clearBtn.addEventListener('click', () => render(0));
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render(value, skipCbSync, skipInputSync) {
+  if (value === null) {
+    mainArt.textContent = buildErrorArt();
+    warningsBox.style.display = 'none';
+    activeList.innerHTML = '';
+    return;
+  }
+  currentValue = value;
+
+  if (!skipInputSync) {
+    flagInput.value = value;
+    flagInput.classList.remove('invalid');
+  }
+  hexDisplay.textContent = value ? `= 0x${value.toString(16).toUpperCase()}` : '';
+
+  if (!skipCbSync) {
+    document.querySelectorAll('.flag-cb').forEach(cb => { cb.checked = !!(value & +cb.dataset.value); });
+  }
+
+  // Active rows
+  document.querySelectorAll('.flag-row').forEach(row => {
+    const b = +row.dataset.bit;
+    row.classList.toggle('is-active', !!(value & b));
+    row.classList.remove('has-warning');
+  });
+
+  // Validations
+  const warnings = [];
+  const warnBits = new Set();
+  VALIDATIONS.forEach(rule => {
+    if (rule.check(value)) {
+      warnings.push(rule.msg);
+      rule.bits.forEach(b => warnBits.add(b));
+    }
+  });
+  warnBits.forEach(b => {
+    const row = document.querySelector(`.flag-row[data-bit="${b}"]`);
+    if (row) row.classList.add('has-warning');
+  });
+
+  if (warnings.length) {
+    warningsBox.style.display = 'block';
+    warningsBox.innerHTML = '<strong>&#9888; Warnings:</strong><ul>' +
+      warnings.map(w => `<li>${w}</li>`).join('') + '</ul>';
+  } else {
+    warningsBox.style.display = 'none';
+    warningsBox.innerHTML = '';
+  }
+
+  mainArt.textContent = buildMainArt(value);
+
+  // Active list
+  const active = FLAGS.filter(f => value & f.bit);
+  if (!active.length) {
+    activeList.innerHTML = '<li style="color:#999">No flags set</li>';
+  } else {
+    activeList.innerHTML = active.map(f =>
+      `<li><strong>${f.name}</strong> &mdash; ${f.desc}</li>`
+    ).join('');
+  }
+}
+
+// ─── ASCII Art ────────────────────────────────────────────────────────────────
+function pad(s, n) { return s.length >= n ? s : s + ' '.repeat(n - s.length); }
+function center(s, n) {
+  const total = n - s.length;
+  const l = Math.floor(total/2), r = total - l;
+  return ' '.repeat(l) + s + ' '.repeat(r);
+}
+
+function buildErrorArt() {
+  const W = 70;
+  return [
+    '╔' + '═'.repeat(W-2) + '╗',
+    '║' + center('  Invalid flag value  ', W-2) + '║',
+    '╚' + '═'.repeat(W-2) + '╝',
+  ].join('\n');
+}
+
+function buildMainArt(v) {
+  const W = 70;
+  const paired    = !!(v & 0x001);
+  const proper    = !!(v & 0x002);
+  const unmap     = !!(v & 0x004);
+  const mateUnmap = !!(v & 0x008);
+  const rev       = !!(v & 0x010);
+  const mateRev   = !!(v & 0x020);
+  const first     = !!(v & 0x040);
+  const second    = !!(v & 0x080);
+  const secondary = !!(v & 0x100);
+  const failsQC   = !!(v & 0x200);
+  const dup       = !!(v & 0x400);
+  const supp      = !!(v & 0x800);
+
+  const readLabel = first ? 'R1' : second ? 'R2' : 'RD';
+  const mateLabel = first ? 'R2' : second ? 'R1' : 'MT';
+  const hexStr = '0x' + v.toString(16).toUpperCase().padStart(3,'0');
+
+  const lines = [];
+
+  // ── Header ──
+  lines.push('╔' + '═'.repeat(W-2) + '╗');
+  lines.push('║' + center(`SAM Flag: ${v}  (${hexStr})`, W-2) + '║');
+  lines.push('╚' + '═'.repeat(W-2) + '╝');
+  lines.push('');
+
+  // ── PCR duplicate ghost (above read block) ──
+  if (dup) {
+    lines.push('  ░░░░░░░░░░░░░░░░░░░░░░  ← PCR / optical duplicate');
+  }
+
+  // READ_W = total block width including border chars
+  const READ_W = 22;
+  const inner   = READ_W - 2; // 20
+
+  // Returns [topLine, midLine, botLine] each READ_W chars wide
+  function readBlock(label, isRev, isQC, float) {
+    const bch = float ? '╌' : '─';
+    const top = '┌' + bch.repeat(READ_W-2) + '┐';
+    const bot = '└' + bch.repeat(READ_W-2) + '┘';
+    let mid;
+    if (isQC) {
+      mid = '│' + center(`✗ ${label} FAIL ✗`, inner) + '│';
+    } else if (float) {
+      mid = '│' + center(`${label}  [UNMAPPED]`, inner) + '│';
+    } else if (isRev) {
+      mid = '│ ◀' + '▓'.repeat(inner-4) + '  │';
+    } else {
+      mid = '│  ' + '▓'.repeat(inner-4) + '▶ │';
+    }
+    return [top, mid, bot];
+  }
+
+  // ── Floating unmapped read ──
+  if (unmap) {
+    const [t,m,b] = readBlock(readLabel, false, failsQC, true);
+    lines.push('  ' + t);
+    lines.push('  ' + m);
+    lines.push('  ' + b);
+    lines.push('  ' + ' '.repeat(READ_W/2) + '╎');
+  }
+
+  // ── Floating unmapped mate ──
+  if (paired && mateUnmap) {
+    const [t,m,b] = readBlock(mateLabel, false, false, true);
+    const ind = ' '.repeat(42);
+    lines.push(ind + t);
+    lines.push(ind + m);
+    lines.push(ind + b);
+    lines.push(ind + ' '.repeat(READ_W/2) + '╎');
+  }
+
+  // ── Fragment arc ──
+  if (paired && proper && !unmap && !mateUnmap) {
+    // arc spans from col 6 to col 66
+    lines.push('  ┌' + ' ─'.repeat(14) + ' fragment ' + '─ '.repeat(11) + '─┐');
+  } else {
+    lines.push('');
+  }
+
+  // ── Reference bar ──
+  lines.push('Ref  ╠' + '═'.repeat(W-9) + '╣');
+  lines.push('');
+
+  // ── Mapped read and/or mate below ref ──
+  // Left read starts at col 6, right mate starts at col 42
+  const L = 6;   // left block start col
+  const R = 42;  // right block start col
+
+  const showRead = !unmap;
+  const showMate = paired && !mateUnmap;
+
+  if (showRead || showMate) {
+    const [rT, rM, rB] = readBlock(readLabel, rev, failsQC, false);
+    const [mT, mMd, mB] = readBlock(mateLabel, mateRev, false, false);
+    // label on mid row only — 6 chars wide
+    const lLbl  = showRead ? (readLabel + (rev?' ←':' →') + ' ') : '      '; // e.g. "R1 → "
+    const lBlank = ' '.repeat(lLbl.length); // same width, blank, for top/bot rows
+    // right label suffix after mate block: " ← MT" or " → R2"
+    const rLbl = showMate ? (' ' + (mateRev?'←':'→') + ' ' + mateLabel) : '';
+
+    // top border line — no label, just indent
+    {
+      let line = showRead ? ' ' + lBlank + rT : '';
+      if (showMate) line = pad(line, R) + mT;
+      lines.push(pad(line, W));
+    }
+    // mid line — label on left, optional label on right
+    {
+      let line = showRead ? ' ' + lLbl + rM : '';
+      if (showMate) line = pad(line, R) + mMd + rLbl;
+      lines.push(pad(line, W));
+    }
+    // bottom border line — no label
+    {
+      let line = showRead ? ' ' + lBlank + rB : '';
+      if (showMate) line = pad(line, R) + mB;
+      lines.push(pad(line, W));
+    }
+  }
+
+  // ── Secondary alignment ──
+  if (secondary) {
+    lines.push('');
+    lines.push('       ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌  (2°) secondary alignment');
+  }
+
+  // ── Supplementary / chimeric ──
+  if (supp) {
+    lines.push('');
+    lines.push('  ┌──────────┐       ┌──────────┐  chimeric split');
+    lines.push('  └─────┬────┘       └────┬─────┘');
+    lines.push('         └──────╌╌╌╌╌─────┘  supplementary alignment');
+  }
+
+  // ── QC fail note ──
+  if (failsQC && !unmap) {
+    lines.push('');
+    lines.push('  ⚠  Read fails platform/vendor quality control filters');
+  }
+
+  return lines.join('\n');
+}
+
+// Init
+render(0);
+</script>
+</body>
+</html>
