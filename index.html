@@ -66,7 +66,7 @@ footer a{color:#0d6e6e}
   <section id="input-section">
     <label for="flag-input">Flag value:</label>
     <input type="text" id="flag-input" placeholder="0" value="0" autocomplete="off" spellcheck="false">
-    <button class="btn" id="btn-switch">&#x21c4; Switch to Mate</button>
+    <button class="btn" id="btn-switch">⇄ Switch to Mate</button>
     <button class="btn" id="btn-clear">Clear</button>
     <span class="flag-val-display" id="hex-display"></span>
   </section>
@@ -208,15 +208,16 @@ flagInput.addEventListener('input', () => {
   render(v, false, true);
 });
 
-switchBtn.addEventListener('click', () => {
+function mateValue(v) {
   const swaps = [[0x4,0x8],[0x10,0x20],[0x40,0x80]];
-  let v = currentValue;
   for (const [a,b] of swaps) {
     const ha = !!(v&a), hb = !!(v&b);
     v = (v & ~a & ~b) | (ha?b:0) | (hb?a:0);
   }
-  render(v);
-});
+  return v;
+}
+
+switchBtn.addEventListener('click', () => render(mateValue(currentValue)));
 
 clearBtn.addEventListener('click', () => render(0));
 
@@ -235,6 +236,8 @@ function render(value, skipCbSync, skipInputSync) {
     flagInput.classList.remove('invalid');
   }
   hexDisplay.textContent = value ? `= 0x${value.toString(16).toUpperCase()}` : '';
+  const mv = mateValue(value);
+  switchBtn.textContent = mv !== value ? `⇄ Switch to Mate (${mv})` : '⇄ Switch to Mate';
 
   if (!skipCbSync) {
     document.querySelectorAll('.flag-cb').forEach(cb => { cb.checked = !!(value & +cb.dataset.value); });
