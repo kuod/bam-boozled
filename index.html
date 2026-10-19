@@ -196,9 +196,11 @@ FLAGS.forEach(f => {
 function parseInput(s) {
   s = s.trim();
   if (!s || s === '0') return 0;
-  if (/^0x/i.test(s)) return parseInt(s, 16);
-  if (/^[0-9]+$/.test(s)) return parseInt(s, 10);
-  return NaN;
+  let n = NaN;
+  if (/^0x[0-9a-f]+$/i.test(s)) n = parseInt(s, 16);
+  else if (/^[0-9]+$/.test(s)) n = parseInt(s, 10);
+  // SAM FLAG is a 16-bit field; larger values would also wrap in JS 32-bit bitwise ops.
+  return n <= 0xFFFF ? n : NaN;
 }
 
 flagInput.addEventListener('input', () => {

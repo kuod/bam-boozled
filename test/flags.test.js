@@ -22,3 +22,10 @@ test('mateValue swaps mate/read bits and is an involution', () => {
   assert.strictEqual(api.mateValue(0x40), 0x80);
   for (let v = 0; v <= 0xFFF; v++) assert.strictEqual(api.mateValue(api.mateValue(v)), v);
 });
+
+test('values above 0xFFFF are rejected (no 32-bit wraparound)', () => {
+  assert.strictEqual(api.parseInput('65535'), 0xFFFF);
+  for (const s of ['65536', '4294967297', '0x100000001', '99999999999999999999']) {
+    assert.ok(Number.isNaN(api.parseInput(s)), s);
+  }
+});
