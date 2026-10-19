@@ -41,3 +41,9 @@ test('invalid input resets switch button and hex display', () => {
   api.render(0);
   assert.strictEqual(api.els['btn-switch'].disabled, false);
 });
+
+test('proper pair + mate unmapped is flagged', () => {
+  const hit = v => api.VALIDATIONS.some(r => r.check(v) && r.bits.includes(0x8) && r.bits.includes(0x2));
+  assert.ok(hit(0x1 | 0x2 | 0x8));
+  assert.ok(!hit(0x1 | 0x2));
+});
