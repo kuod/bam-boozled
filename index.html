@@ -21,6 +21,7 @@ main{max-width:1100px;margin:0 auto}
 .btn:active{transform:scale(0.97)}
 #btn-switch{background:#0d6e6e;color:#fff}
 #btn-switch:hover{background:#0a5858}
+#btn-switch:disabled{background:#adb5bd;cursor:not-allowed}
 #btn-clear{background:#e9ecef;color:#555}
 #btn-clear:hover{background:#dee2e6}
 .flag-val-display{font-family:monospace;font-size:0.85rem;color:#666;margin-left:auto}
@@ -130,6 +131,7 @@ const VALIDATIONS = [
   { check: v => !(v&1) && (v & 0x80),  msg: '"Second in pair" requires "Read paired" (0x1)',        bits:[0x80,0x1] },
   { check: v => (v&4) && (v&2),        msg: 'Unmapped read cannot be in a proper pair',             bits:[0x4,0x2] },
   { check: v => (v&4) && (v&16),       msg: 'Strand orientation is meaningless for unmapped reads', bits:[0x4,0x10] },
+  { check: v => (v&8) && (v&2),        msg: '"Proper pair" is contradictory when the mate is unmapped', bits:[0x8,0x2] },
   { check: v => (v&8) && (v&32),       msg: 'Mate strand is meaningless when mate is unmapped',     bits:[0x8,0x20] },
   { check: v => (v&64) && (v&128),     msg: 'Read cannot be both first and second in pair',         bits:[0x40,0x80] },
   { check: v => (v&256) && (v&2048),   msg: 'Alignment cannot be both secondary and supplementary', bits:[0x100,0x800] },
@@ -196,9 +198,11 @@ FLAGS.forEach(f => {
 function parseInput(s) {
   s = s.trim();
   if (!s || s === '0') return 0;
-  if (/^0x/i.test(s)) return parseInt(s, 16);
-  if (/^[0-9]+$/.test(s)) return parseInt(s, 10);
-  return NaN;
+  let n = NaN;
+  if (/^0x[0-9a-f]+$/i.test(s)) n = parseInt(s, 16);
+  else if (/^[0-9]+$/.test(s)) n = parseInt(s, 10);
+  // SAM FLAG is a 16-bit field; larger values would also wrap in JS 32-bit bitwise ops.
+  return n <= 0xFFFF ? n : NaN;
 }
 
 flagInput.addEventListener('input', () => {
@@ -217,19 +221,24 @@ function mateValue(v) {
   return v;
 }
 
-switchBtn.addEventListener('click', () => render(mateValue(currentValue)));
+switchBtn.addEventListener('click', () => { if (currentValue !== null) render(mateValue(currentValue)); });
 
 clearBtn.addEventListener('click', () => render(0));
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render(value, skipCbSync, skipInputSync) {
   if (value === null) {
+    currentValue = null;
+    hexDisplay.textContent = '';
+    switchBtn.textContent = '\u21c4 Switch to Mate';
+    switchBtn.disabled = true;
     mainArt.textContent = buildErrorArt();
     warningsBox.style.display = 'none';
     activeList.innerHTML = '';
     return;
   }
   currentValue = value;
+  switchBtn.disabled = false;
 
   if (!skipInputSync) {
     flagInput.value = value;

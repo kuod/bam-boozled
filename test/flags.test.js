@@ -1,0 +1,49 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert');
+const api = require('./load')();
+
+test('parseInput accepts decimal and hex', () => {
+  assert.strictEqual(api.parseInput('83'), 83);
+  assert.strictEqual(api.parseInput(' 0x53 '), 83);
+  assert.strictEqual(api.parseInput('0X3'), 3);
+  assert.strictEqual(api.parseInput(''), 0);
+});
+
+test('parseInput rejects junk', () => {
+  for (const s of ['abc', '0x', '1.5', '-1', '1e3', '0xZZ']) {
+    assert.ok(Number.isNaN(api.parseInput(s)), s);
+  }
+});
+
+test('mateValue swaps mate/read bits and is an involution', () => {
+  assert.strictEqual(api.mateValue(0x4), 0x8);
+  assert.strictEqual(api.mateValue(0x10), 0x20);
+  assert.strictEqual(api.mateValue(0x40), 0x80);
+  for (let v = 0; v <= 0xFFF; v++) assert.strictEqual(api.mateValue(api.mateValue(v)), v);
+});
+
+test('values above 0xFFFF are rejected (no 32-bit wraparound)', () => {
+  assert.strictEqual(api.parseInput('65535'), 0xFFFF);
+  for (const s of ['65536', '4294967297', '0x100000001', '99999999999999999999']) {
+    assert.ok(Number.isNaN(api.parseInput(s)), s);
+  }
+});
+
+test('invalid input resets switch button and hex display', () => {
+  api.render(0x63);
+  assert.strictEqual(api.els['btn-switch'].disabled, false);
+  assert.ok(api.els['hex-display'].textContent.includes('63'));
+  api.render(null);
+  assert.strictEqual(api.els['btn-switch'].disabled, true);
+  assert.strictEqual(api.els['hex-display'].textContent, '');
+  assert.strictEqual(api.els['btn-switch'].textContent, '⇄ Switch to Mate');
+  api.render(0);
+  assert.strictEqual(api.els['btn-switch'].disabled, false);
+});
+
+test('proper pair + mate unmapped is flagged', () => {
+  const hit = v => api.VALIDATIONS.some(r => r.check(v) && r.bits.includes(0x8) && r.bits.includes(0x2));
+  assert.ok(hit(0x1 | 0x2 | 0x8));
+  assert.ok(!hit(0x1 | 0x2));
+});
