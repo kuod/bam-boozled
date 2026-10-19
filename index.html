@@ -21,6 +21,7 @@ main{max-width:1100px;margin:0 auto}
 .btn:active{transform:scale(0.97)}
 #btn-switch{background:#0d6e6e;color:#fff}
 #btn-switch:hover{background:#0a5858}
+#btn-switch:disabled{background:#adb5bd;cursor:not-allowed}
 #btn-clear{background:#e9ecef;color:#555}
 #btn-clear:hover{background:#dee2e6}
 .flag-val-display{font-family:monospace;font-size:0.85rem;color:#666;margin-left:auto}
@@ -219,19 +220,24 @@ function mateValue(v) {
   return v;
 }
 
-switchBtn.addEventListener('click', () => render(mateValue(currentValue)));
+switchBtn.addEventListener('click', () => { if (currentValue !== null) render(mateValue(currentValue)); });
 
 clearBtn.addEventListener('click', () => render(0));
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render(value, skipCbSync, skipInputSync) {
   if (value === null) {
+    currentValue = null;
+    hexDisplay.textContent = '';
+    switchBtn.textContent = '\u21c4 Switch to Mate';
+    switchBtn.disabled = true;
     mainArt.textContent = buildErrorArt();
     warningsBox.style.display = 'none';
     activeList.innerHTML = '';
     return;
   }
   currentValue = value;
+  switchBtn.disabled = false;
 
   if (!skipInputSync) {
     flagInput.value = value;

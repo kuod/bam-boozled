@@ -29,3 +29,15 @@ test('values above 0xFFFF are rejected (no 32-bit wraparound)', () => {
     assert.ok(Number.isNaN(api.parseInput(s)), s);
   }
 });
+
+test('invalid input resets switch button and hex display', () => {
+  api.render(0x63);
+  assert.strictEqual(api.els['btn-switch'].disabled, false);
+  assert.ok(api.els['hex-display'].textContent.includes('63'));
+  api.render(null);
+  assert.strictEqual(api.els['btn-switch'].disabled, true);
+  assert.strictEqual(api.els['hex-display'].textContent, '');
+  assert.strictEqual(api.els['btn-switch'].textContent, '⇄ Switch to Mate');
+  api.render(0);
+  assert.strictEqual(api.els['btn-switch'].disabled, false);
+});
