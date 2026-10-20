@@ -408,7 +408,7 @@ function buildMainArt(v) {
   if (showRead || showMate) {
     const [rT, rM, rB] = readBlock(readLabel, rev, failsQC, false);
     const [mT, mMd, mB] = readBlock(mateLabel, mateRev, false, false);
-    // label on mid row only — 6 chars wide
+    // label on mid row only — 5 chars wide
     const lLbl  = showRead ? (readLabel + (rev?' ←':' →') + ' ') : '      '; // e.g. "R1 → "
     const lBlank = ' '.repeat(lLbl.length); // same width, blank, for top/bot rows
     // right label suffix after mate block: " ← MT" or " → R2"
